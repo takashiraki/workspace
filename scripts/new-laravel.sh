@@ -9,21 +9,11 @@ TEMPLATE="$ROOT/templates/php/laravel"
 APP_DIR="$ROOT/apps/$NAME"
 MYSQL_ENV="$ROOT/infra/docker_mysql/.env"
 
-info() { printf '\033[36m==> %s\033[0m\n' "$*"; }
-warn() { printf '\033[33m[warn] %s\033[0m\n' "$*"; }
-die()  { printf '\033[31m[error] %s\033[0m\n' "$*" >&2; exit 1; }
+# shellcheck source=lib.sh
+source "$ROOT/scripts/lib.sh"
 
-# .env の KEY を VALUE に設定する (コメントアウトされた行も対象。無ければ追記)
-set_env() {
-  local key=$1 value=$2 file="$APP_DIR/.env" tmp
-  tmp=$(mktemp)
-  awk -v k="$key" -v v="$value" '
-    BEGIN { done = 0 }
-    $0 ~ "^#? ?" k "=" { if (!done) { print k "=" v; done = 1 }; next }
-    { print }
-    END { if (!done) print k "=" v }
-  ' "$file" > "$tmp" && mv "$tmp" "$file"
-}
+# アプリの .env の KEY を VALUE に設定する
+set_env() { env_set "$APP_DIR/.env" "$1" "$2"; }
 
 # ---- 入力チェック ------------------------------------------------------------
 [[ -n "$NAME" ]] || die "NAME を指定してください (例: make laravel NAME=blog)"
@@ -32,6 +22,27 @@ set_env() {
 docker info >/dev/null 2>&1 || die "Docker が起動していません"
 
 DB_NAME=${NAME//-/_}
+
+# ---- URL の決定 -----------------------------------------------------------------
+# HOST を直接指定 > <NAME>.<DOMAIN>
+DOMAIN=${DOMAIN:-localhost}
+APP_HOST=${HOST:-$NAME.$DOMAIN}
+TZ=${TZ:-Asia/Tokyo}
+
+if is_local_domain "$APP_HOST"; then
+  # ローカル: http、証明書なし
+  SCHEME=http
+  LE_HOST=""
+  LE_EMAIL=""
+else
+  # サーバー: Let's Encrypt で https
+  [[ -n "${LETSENCRYPT_EMAIL:-}" ]] || die "DOMAIN が localhost 以外のときは LETSENCRYPT_EMAIL が必要です (.env か引数で指定)"
+  SCHEME=https
+  LE_HOST=$APP_HOST
+  LE_EMAIL=$LETSENCRYPT_EMAIL
+fi
+APP_URL="$SCHEME://$APP_HOST"
+info "URL: $APP_URL"
 
 # ---- 1. Laravel 作成 (ホストに PHP 不要) --------------------------------------
 info "Laravel を作成: apps/$NAME"
@@ -53,18 +64,18 @@ set_env CONTAINER_NAME    "$NAME"
 set_env DOCKER_PATH       ""
 set_env REPOSITORY        "."
 set_env HOST_PROJECT_PATH "$APP_DIR"
-set_env VIRTUAL_HOST      "$NAME.localhost"
-set_env LETSENCRYPT_HOST  ""
-set_env LETSENCRYPT_EMAIL ""
+set_env VIRTUAL_HOST      "$APP_HOST"
+set_env LETSENCRYPT_HOST  "$LE_HOST"
+set_env LETSENCRYPT_EMAIL "$LE_EMAIL"
 set_env LETSENCRYPT_TEST  ""
 set_env CERT_NAME         ""
-set_env TZ                "Asia/Tokyo"
+set_env TZ                "$TZ"
 set_env OTEL_ENABLED      "false"
 set_env OTEL_SERVICE_NAME "$NAME"
 
 # Laravel 用
 set_env APP_NAME "$NAME"
-set_env APP_URL  "http://$NAME.localhost"
+set_env APP_URL  "$APP_URL"
 
 set_env DB_CONNECTION mysql
 set_env DB_HOST       my_database
@@ -112,4 +123,4 @@ if [[ "$DB_READY" == 1 ]]; then
   docker compose exec -T app php artisan migrate --force
 fi
 
-info "完了: http://$NAME.localhost  (apps/$NAME)"
+info "完了: $APP_URL  (apps/$NAME)"

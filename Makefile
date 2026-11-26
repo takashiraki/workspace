@@ -3,12 +3,20 @@
 #   make help で一覧表示
 # ------------------------------------------------------------------------------
 
+# ワークスペース設定 (.env)。make 引数で上書き可: make laravel NAME=blog DOMAIN=example.com
+-include .env
+DOMAIN            ?= localhost
+LETSENCRYPT_EMAIL ?=
+TZ                ?= Asia/Tokyo
+HOST              ?=
+export DOMAIN LETSENCRYPT_EMAIL TZ HOST
+
 # 起動順 (proxy を先頭に)。make infra-up INFRA="docker_mysql docker_redis" で絞り込み可
 INFRA ?= docker_proxy_network docker_mysql docker_redis docker_mailpit docker_prometheus
 NETWORKS := my_infra_network my_proxy_network
 
 .DEFAULT_GOAL := help
-.PHONY: help init network infra-up infra-down infra-ps laravel up down restart logs ps shell vendor-sync apps build
+.PHONY: help init config network infra-up infra-down infra-ps laravel up down restart logs ps shell vendor-sync apps build
 
 help: ## このヘルプを表示
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -16,8 +24,14 @@ help: ## このヘルプを表示
 
 # ---- セットアップ -------------------------------------------------------------
 
-init: ## submodule を取得 (clone 直後に1回)
+init: ## submodule 取得と .env 作成 (make init DOMAIN=hogehoge.localhost)。再実行でドメイン変更
 	git submodule update --init --recursive
+	@DOMAIN="$(if $(filter command line,$(origin DOMAIN)),$(DOMAIN))" ./scripts/init.sh
+
+config: ## 現在のワークスペース設定を表示
+	@echo "DOMAIN            = $(DOMAIN)"
+	@echo "LETSENCRYPT_EMAIL = $(LETSENCRYPT_EMAIL)"
+	@echo "TZ                = $(TZ)"
 
 network: ## 外部ネットワークを作成 (既にあれば何もしない)
 	@for n in $(NETWORKS); do \
@@ -47,7 +61,7 @@ infra-ps: ## インフラの状態を表示
 
 # ---- アプリ作成 ---------------------------------------------------------------
 
-laravel: network ## Laravel アプリを作成 (make laravel NAME=blog)
+laravel: network ## Laravel アプリを作成 (make laravel NAME=blog [DOMAIN=.. | HOST=..])
 	@./scripts/new-laravel.sh "$(NAME)"
 
 apps: ## 作成済みアプリの一覧
