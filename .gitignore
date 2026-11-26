@@ -5,3 +5,6 @@ apps/
 .env
 
 .DS_Store
+
+# composer のキャッシュ
+.cache/

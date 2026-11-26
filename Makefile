@@ -9,6 +9,7 @@ DOMAIN            ?= localhost
 LETSENCRYPT_EMAIL ?=
 TZ                ?= Asia/Tokyo
 HOST              ?=
+WEBAPP            ?= 1
 export DOMAIN LETSENCRYPT_EMAIL TZ HOST
 
 # 起動順 (proxy を先頭に)。make infra-up INFRA="docker_mysql docker_redis" で絞り込み可
@@ -16,10 +17,10 @@ INFRA ?= docker_proxy_network docker_mysql docker_redis docker_mailpit docker_pr
 NETWORKS := my_infra_network my_proxy_network
 
 .DEFAULT_GOAL := help
-.PHONY: help init config network infra-up infra-down infra-ps laravel up down restart logs ps shell vendor-sync apps build
+.PHONY: help init config network infra-up infra-down infra-ps laravel symfony up down restart logs ps shell vendor-sync apps build
 
 help: ## このヘルプを表示
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
+	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
 # ---- セットアップ -------------------------------------------------------------
@@ -63,6 +64,9 @@ infra-ps: ## インフラの状態を表示
 
 laravel: network ## Laravel アプリを作成 (make laravel NAME=blog [DOMAIN=.. | HOST=..])
 	@./scripts/new-laravel.sh "$(NAME)"
+
+symfony: network ## Symfony アプリを作成 (make symfony NAME=shop [WEBAPP=0] [DOMAIN=.. | HOST=..])
+	@WEBAPP="$(WEBAPP)" ./scripts/new-symfony.sh "$(NAME)"
 
 apps: ## 作成済みアプリの一覧
 	@ls -1 apps 2>/dev/null || echo "(なし)"
