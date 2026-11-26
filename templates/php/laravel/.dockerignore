@@ -1,0 +1,27 @@
+# 依存関係（コンテナ内でインストールする）
+vendor
+node_modules
+
+# VCS / エディタ
+.git
+.gitignore
+.idea
+.vscode
+
+# 実行時に生成されるファイル
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*.php
+public/hot
+public/storage
+
+# 秘密情報をイメージに含めない
+.env
+.env.*
+!.env.example
+
+# Docker関連（イメージ内には不要）
+compose.yaml
+.dockerignore

@@ -1,0 +1,15 @@
+[submodule "infra/docker_mysql"]
+	path = infra/docker_mysql
+	url = https://github.com/takashiraki/docker_mysql.git
+[submodule "infra/docker_proxy_network"]
+	path = infra/docker_proxy_network
+	url = https://github.com/takashiraki/docker_proxy_network.git
+[submodule "infra/docker_mailpit"]
+	path = infra/docker_mailpit
+	url = https://github.com/takashiraki/docker_mailpit.git
+[submodule "infra/docker_redis"]
+	path = infra/docker_redis
+	url = https://github.com/takashiraki/docker_redis.git
+[submodule "infra/docker_prometheus"]
+	path = infra/docker_prometheus
+	url = https://github.com/takashiraki/docker_prometheus.git

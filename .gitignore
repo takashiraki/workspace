@@ -1,0 +1,4 @@
+# make laravel 等で生成するアプリ (各アプリは個別に git 管理)
+apps/
+
+.DS_Store
