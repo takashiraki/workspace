@@ -1,0 +1,28 @@
+# VCS
+.git
+.gitignore
+
+# ローカル環境 / 秘密情報 (イメージに含めない)
+.env.local
+.env.*.local
+
+# 開発用 DB
+migrations/*.db
+
+# 依存関係 (コンテナ内でインストールする)
+vendor/
+node_modules/
+assets/vendor/
+
+# 開発ツール / キャッシュ
+var/
+.php-cs-fixer.cache
+.idea/
+.vscode/
+.claude/
+.devcontainer/
+tests/
+
+# Docker 関連 (イメージ内には不要)
+compose.yaml
+.dockerignore
