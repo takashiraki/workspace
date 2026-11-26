@@ -10,14 +10,27 @@ LETSENCRYPT_EMAIL ?=
 TZ                ?= Asia/Tokyo
 HOST              ?=
 WEBAPP            ?= 1
-export DOMAIN LETSENCRYPT_EMAIL TZ HOST
+FW                ?=
+export DOMAIN LETSENCRYPT_EMAIL TZ HOST FW
+
+# make node の CREATE / DEV / PORT は「make の引数で渡されたときだけ」使う
+# (PORT などはシェルの環境変数に既にあることが多く、意図せず拾わないように)
+NODE_OVERRIDES = $(foreach v,CREATE DEV PORT,$(if $(filter command line,$(origin $(v))),NODE_$(v)='$($(v))'))
 
 # 起動順 (proxy を先頭に)。make infra-up INFRA="docker_mysql docker_redis" で絞り込み可
 INFRA ?= docker_proxy_network docker_mysql docker_redis docker_mailpit docker_prometheus
 NETWORKS := my_infra_network my_proxy_network
 
 .DEFAULT_GOAL := help
-.PHONY: help init config network infra-up infra-down infra-ps laravel symfony up down restart logs ps shell vendor-sync apps build
+.PHONY: help init config network infra-up infra-down infra-ps laravel symfony node frameworks up down restart logs ps shell vendor-sync apps build
+
+# Node 系フレームワーク (templates/node/frameworks.conf の [名前] から自動生成)
+# 既存のターゲット名と同じものはショートカットを作らない (make node FW=.. で使う)
+RESERVED_TARGETS := help init config network infra-up infra-down infra-ps laravel symfony node frameworks \
+                    up down restart build logs ps shell vendor-sync apps
+NODE_FRAMEWORKS  := $(shell sed -n 's/^\[\(.*\)\]$$/\1/p' templates/node/frameworks.conf 2>/dev/null)
+NODE_SHORTCUTS   := $(filter-out $(RESERVED_TARGETS),$(NODE_FRAMEWORKS))
+.PHONY: $(NODE_SHORTCUTS)
 
 help: ## このヘルプを表示
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | \
@@ -68,6 +81,15 @@ laravel: network ## Laravel アプリを作成 (make laravel NAME=blog [DOMAIN=.
 symfony: network ## Symfony アプリを作成 (make symfony NAME=shop [WEBAPP=0] [DOMAIN=.. | HOST=..])
 	@WEBAPP="$(WEBAPP)" ./scripts/new-symfony.sh "$(NAME)"
 
+node: network ## Node 系アプリを作成 (make node NAME=front FW=vue)。make vue NAME=front でも可
+	@$(NODE_OVERRIDES) ./scripts/new-node.sh "$(NAME)"
+
+$(NODE_SHORTCUTS): network
+	@FW=$@ $(NODE_OVERRIDES) ./scripts/new-node.sh "$(NAME)"
+
+frameworks: ## make node で使える FW の一覧 (templates/node/frameworks.conf)
+	@echo "$(NODE_FRAMEWORKS)"
+
 apps: ## 作成済みアプリの一覧
 	@ls -1 apps 2>/dev/null || echo "(なし)"
 
@@ -106,7 +128,7 @@ ps: ## アプリの状態を表示
 
 shell: ## app コンテナに入る
 	$(require_name)
-	cd $(APP_DIR) && docker compose exec app bash
+	cd $(APP_DIR) && docker compose exec app sh -c 'command -v bash >/dev/null && exec bash || exec sh'
 
 vendor-sync: ## ホスト側 vendor を composer.lock に合わせる (補完用)
 	$(require_name)

@@ -1,0 +1,19 @@
+# 依存関係 / ビルド成果物
+node_modules
+dist
+.nuxt
+.output
+
+# VCS / エディタ
+.git
+.gitignore
+.idea
+.vscode
+
+# 環境変数
+.env
+.env.*
+
+# Docker 関連 (イメージ内には不要)
+compose.yaml
+.dockerignore
